@@ -31,6 +31,7 @@ class FlowFieldsGL {
             globalSwirl: 0,         // Global rotation around center (-1 to 1)
             chargeInteraction: 0,   // Particle charge interaction strength (0 = disabled)
             chargeRatio: 0.5,       // Fraction of positive charges (0.5 = half and half)
+            gravityInteraction: 0,  // Particle gravity interaction (-2 to +2, negative repels)
             time: 0,
             ...initialConfig  // Apply initial config before init()
         };
@@ -397,6 +398,7 @@ class FlowFieldsGL {
         gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_zonesStrength'), this.config.zonesStrength);
         gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_chargeInteraction'), this.config.chargeInteraction);
         gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_chargeRatio'), this.config.chargeRatio);
+        gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_gravityInteraction'), this.config.gravityInteraction);
         gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_textureSize'), this.textureSize);
 
         // Force fields
@@ -575,6 +577,7 @@ uniform bool u_zonesEnabled;
 uniform float u_zonesStrength;
 uniform float u_chargeInteraction;
 uniform float u_chargeRatio;
+uniform float u_gravityInteraction;
 uniform float u_textureSize;
 
 // Simplex noise functions
@@ -747,6 +750,37 @@ vec2 getChargeInteraction(vec2 pos, vec2 texCoord) {
     return totalForce * u_chargeInteraction;
 }
 
+// Calculate gravity interaction force (all particles attract/repel each other)
+vec2 getGravityInteraction(vec2 pos, vec2 texCoord) {
+    if (abs(u_gravityInteraction) < 0.001) return vec2(0.0);
+
+    vec2 totalForce = vec2(0.0);
+    float interactionRadius = 120.0;
+
+    // Sample nearby particles using a spiral pattern
+    for (int i = 0; i < 16; i++) {
+        float angle = float(i) * 2.399 + u_time * 0.01; // Golden angle spiral
+        float r = (float(i) + 1.0) * 0.05;
+        vec2 offset = vec2(cos(angle), sin(angle)) * r;
+        vec2 sampleCoord = fract(texCoord + offset);
+
+        vec4 other = texture(u_particles, sampleCoord);
+        vec2 otherPos = other.xy;
+
+        vec2 diff = otherPos - pos; // Points toward other particle
+        float dist = length(diff);
+
+        if (dist > 5.0 && dist < interactionRadius) {
+            float forceMag = 1.0 / (dist * dist + 10.0);
+            vec2 dir = normalize(diff);
+            // Positive = attract toward other particles, negative = repel
+            totalForce += dir * forceMag * 50.0;
+        }
+    }
+
+    return totalForce * u_gravityInteraction;
+}
+
 void main() {
     vec4 particle = texture(u_particles, v_texCoord);
     vec2 pos = particle.xy;
@@ -768,9 +802,10 @@ void main() {
     // Add force field effects
     vec2 forceEffect = getForceFieldEffect(pos) * u_forceFieldStrength;
 
-    // Add charge interaction
+    // Add particle interactions
     vec2 chargeForce = getChargeInteraction(pos, v_texCoord);
-    forceEffect += chargeForce;
+    vec2 gravityForce = getGravityInteraction(pos, v_texCoord);
+    forceEffect += chargeForce + gravityForce;
 
     // Add brownian motion - use independent seeds to avoid grid patterns
     vec2 brownian = vec2(
