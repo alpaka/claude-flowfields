@@ -39,7 +39,7 @@ class FlowFieldsGL {
         this.enabledForceTypes = [true, true, true, true, true]; // Which types can auto-spawn
 
         // Mouse state
-        this.mouse = { x: -1000, y: -1000, radius: 150, mode: 0 };
+        this.mouse = { x: -1000, y: -1000, radius: 150, strength: 1.0, mode: 0 };
         this.paused = false;
 
         this.init();
@@ -369,6 +369,7 @@ class FlowFieldsGL {
         gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_globalGravity'), this.config.globalGravity);
         gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_globalSwirl'), this.config.globalSwirl);
         gl.uniform3f(gl.getUniformLocation(this.physicsProgram, 'u_mouse'), this.mouse.x, this.mouse.y, this.mouse.radius);
+        gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_mouseStrength'), this.mouse.strength);
         gl.uniform1i(gl.getUniformLocation(this.physicsProgram, 'u_mouseMode'), this.mouse.mode);
         gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_respawnRate'), this.config.respawnRate);
         gl.uniform1i(gl.getUniformLocation(this.physicsProgram, 'u_zonesEnabled'), this.config.zonesEnabled ? 1 : 0);
@@ -540,6 +541,7 @@ uniform float u_brownianMotion;
 uniform float u_globalGravity;
 uniform float u_globalSwirl;
 uniform vec3 u_mouse;
+uniform float u_mouseStrength;
 uniform int u_mouseMode;
 uniform float u_forceFields[320]; // 40 force fields * 8 floats each
 uniform int u_forceFieldCount;
@@ -705,7 +707,7 @@ void main() {
     vec2 mouseDiff = pos - u_mouse.xy;
     float mouseDist = length(mouseDiff);
     if (mouseDist < u_mouse.z && mouseDist > 5.0) {
-        float force = (u_mouse.z - mouseDist) / u_mouse.z;
+        float force = (u_mouse.z - mouseDist) / u_mouse.z * u_mouseStrength;
         vec2 mouseDir = normalize(mouseDiff);
 
         if (u_mouseMode == 0) {

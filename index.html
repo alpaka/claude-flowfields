@@ -436,6 +436,14 @@
                 <option value="2">Repel</option>
             </select>
         </div>
+        <div class="setting">
+            <label>Mouse Radius <span class="setting-value" id="mouseRadiusVal">150</span></label>
+            <input type="range" id="mouseRadius" min="50" max="400" step="10" value="150" oninput="setMouseRadius(this.value)">
+        </div>
+        <div class="setting">
+            <label>Mouse Strength <span class="setting-value" id="mouseStrengthVal">1.0</span></label>
+            <input type="range" id="mouseStrength" min="0.1" max="3" step="0.1" value="1" oninput="setMouseStrength(this.value)">
+        </div>
 
         <h3>Colors</h3>
         <div class="setting">
@@ -737,6 +745,16 @@
 
         function setMouseMode(val) {
             if (flowFieldsGL) flowFieldsGL.mouse.mode = parseInt(val);
+        }
+
+        function setMouseRadius(val) {
+            if (flowFieldsGL) flowFieldsGL.mouse.radius = parseInt(val);
+            document.getElementById('mouseRadiusVal').textContent = val;
+        }
+
+        function setMouseStrength(val) {
+            if (flowFieldsGL) flowFieldsGL.mouse.strength = parseFloat(val);
+            document.getElementById('mouseStrengthVal').textContent = val;
         }
 
         function setColorScheme(val) {
