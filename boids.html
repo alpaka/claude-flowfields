@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boids - Flocking Simulation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            overflow: hidden;
+            min-height: 100vh;
+        }
+        canvas {
+            display: block;
+        }
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+        button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        #info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'Georgia', serif;
+            font-size: 14px;
+        }
+        #instructions {
+            position: fixed;
+            top: 50px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.4);
+            font-family: monospace;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="info">Boids - Flocking Simulation</div>
+    <div id="instructions">
+        Move mouse to attract/repel<br>
+        Click to toggle attract/repel<br>
+        Scroll to change flock size
+    </div>
+    <div id="controls">
+        <button onclick="addBoids(50)">Add Boids</button>
+        <button onclick="togglePredator()">Toggle Predator</button>
+        <button onclick="cycleSpecies()">Change Species</button>
+        <button onclick="toggleTrails()">Toggle Trails</button>
+        <button onclick="reset()">Reset</button>
+    </div>
+    <script src="boids.js"></script>
+</body>
+</html>

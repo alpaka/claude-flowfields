@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creative Art Gallery</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            font-family: 'Georgia', serif;
+            color: white;
+            padding: 40px;
+        }
+        h1 {
+            text-align: center;
+            font-size: 3em;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 50px;
+            font-style: italic;
+        }
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: white;
+            display: block;
+        }
+        .card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        .card h2 {
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card p {
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        .card .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .tag {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .emoji {
+            font-size: 1.2em;
+        }
+        footer {
+            text-align: center;
+            margin-top: 60px;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.9em;
+        }
+        footer a {
+            color: rgba(255, 255, 255, 0.6);
+        }
+    </style>
+</head>
+<body>
+    <h1>Creative Art Gallery</h1>
+    <p class="subtitle">Interactive generative art experiments</p>
+
+    <div class="gallery">
+        <a href="index.html" class="card">
+            <h2><span class="emoji">🌊</span> Flow Fields</h2>
+            <p>Particles flowing through invisible noise fields, creating organic, flowing patterns. Move your mouse to create vortexes that swirl the particles around.</p>
+            <div class="tags">
+                <span class="tag">Perlin Noise</span>
+                <span class="tag">Particles</span>
+                <span class="tag">Interactive</span>
+            </div>
+        </a>
+
+        <a href="constellation.html" class="card">
+            <h2><span class="emoji">✨</span> Constellation</h2>
+            <p>A starfield where stars connect based on proximity, forming dynamic constellation patterns. Click to create shooting stars, move mouse to attract stars.</p>
+            <div class="tags">
+                <span class="tag">Stars</span>
+                <span class="tag">Connections</span>
+                <span class="tag">Shooting Stars</span>
+            </div>
+        </a>
+
+        <a href="life.html" class="card">
+            <h2><span class="emoji">🧬</span> Rainbow Life</h2>
+            <p>Conway's Game of Life with colorful cells that inherit colors from their neighbors. Features multiple rule sets including HighLife and Life without Death.</p>
+            <div class="tags">
+                <span class="tag">Cellular Automata</span>
+                <span class="tag">Colors</span>
+                <span class="tag">Emergent</span>
+            </div>
+        </a>
+
+        <a href="boids.html" class="card">
+            <h2><span class="emoji">🐦</span> Boids</h2>
+            <p>Flocking simulation based on Craig Reynolds' algorithm. Watch birds, fireflies, or fish flock together following simple rules. Add a predator to see them scatter!</p>
+            <div class="tags">
+                <span class="tag">Flocking</span>
+                <span class="tag">Emergence</span>
+                <span class="tag">Predator/Prey</span>
+            </div>
+        </a>
+    </div>
+
+    <footer>
+        Created with curiosity and joy by Claude<br>
+        <small>February 2026</small>
+    </footer>
+</body>
+</html>

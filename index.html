@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flow Fields - WebGL GPU Accelerated</title>
+
+    <!-- SEO -->
+    <meta name="description" content="GPU-accelerated generative art with 500,000+ particles flowing through noise fields. Built with WebGL2 for maximum performance.">
+    <meta name="keywords" content="generative art, webgl, gpu, particles, flow fields, creative coding">
+    <meta name="author" content="Claude (Anthropic)">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+
+        #info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: monospace;
+            font-size: 14px;
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+        }
+
+        #fps {
+            position: fixed;
+            top: 45px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.4);
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        #settings-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            z-index: 100;
+        }
+        #settings-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        #settings-panel {
+            position: fixed;
+            top: 0;
+            right: -320px;
+            width: 300px;
+            height: 100%;
+            background: rgba(15, 15, 25, 0.95);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+            transition: right 0.3s ease;
+            z-index: 150;
+        }
+        #settings-panel.open {
+            right: 0;
+        }
+
+        #settings-panel h2 {
+            color: white;
+            font-size: 18px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        #settings-panel h3 {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 20px 0 10px 0;
+        }
+
+        .setting {
+            margin-bottom: 15px;
+        }
+        .setting label {
+            display: block;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        .setting-value {
+            float: right;
+            color: rgba(100, 200, 255, 0.8);
+        }
+        .setting input[type="range"] {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.1);
+            height: 4px;
+            border-radius: 2px;
+            -webkit-appearance: none;
+        }
+        .setting input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: #60efff;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .setting select {
+            width: 100%;
+            background: #1a1a2e;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .setting select option {
+            background: #1a1a2e;
+            color: white;
+        }
+
+        .quick-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .quick-buttons button {
+            flex: 1;
+            min-width: 60px;
+            padding: 8px;
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .quick-buttons button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+        #controls button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        #controls button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        #webgl-warning {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 30, 0.95);
+            border: 1px solid rgba(255, 100, 100, 0.5);
+            padding: 30px;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+            max-width: 400px;
+        }
+        #webgl-warning h2 {
+            color: #ff6666;
+            margin-bottom: 15px;
+        }
+        #webgl-warning a {
+            color: #60efff;
+        }
+
+        .particle-count-display {
+            background: linear-gradient(90deg, #00ff87, #60efff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: bold;
+        }
+
+        #help-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 300;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        #help-modal.open {
+            display: flex;
+        }
+        #help-content {
+            background: rgba(20, 20, 35, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            color: white;
+        }
+        #help-content h1 {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00ff87, #60efff, #ff00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        #help-content .subtitle {
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+        #help-content h2 {
+            font-size: 1.1em;
+            margin: 20px 0 10px 0;
+            color: #60efff;
+        }
+        #help-content ul {
+            margin-left: 20px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        #help-content li {
+            margin-bottom: 8px;
+        }
+        #help-content kbd {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        #help-content .close-btn {
+            margin-top: 20px;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(90deg, #00ff87, #60efff);
+            border: none;
+            border-radius: 5px;
+            color: black;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        #force-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <div id="info">Flow Fields - WebGL</div>
+    <div id="fps">-- FPS</div>
+
+    <button id="settings-toggle" onclick="toggleSettings()">Settings</button>
+
+    <div id="settings-panel">
+        <button onclick="toggleSettings()" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: rgba(255,255,255,0.5); font-size: 20px; cursor: pointer; padding: 5px;">&times;</button>
+        <h2>WebGL Flow Fields</h2>
+        <p style="color: rgba(255,255,255,0.5); font-size: 12px; margin-bottom: 15px;">
+            GPU-accelerated with <span class="particle-count-display" id="particle-display">250,000</span> particles
+        </p>
+
+        <h3>Particles</h3>
+        <div class="setting">
+            <label>Particle Count <span class="setting-value" id="particleCountVal">250,000</span></label>
+            <input type="range" id="particleCount" min="4" max="8" step="0.1" value="5.4" oninput="setParticleCountLog(this.value)">
+        </div>
+        <div class="setting">
+            <label>Particle Size <span class="setting-value" id="particleSizeVal">1.5</span></label>
+            <input type="range" id="particleSize" min="0.5" max="5" step="0.5" value="1.5" oninput="setParticleSize(this.value)">
+        </div>
+        <div class="setting">
+            <label>Particle Opacity <span class="setting-value" id="particleOpacityVal">0.15</span></label>
+            <input type="range" id="particleOpacity" min="0.003" max="0.5" step="0.001" value="0.15" oninput="setParticleOpacity(this.value)">
+        </div>
+        <div class="setting">
+            <label>Respawn Rate <span class="setting-value" id="respawnRateVal">0.002</span></label>
+            <input type="range" id="respawnRate" min="0" max="0.02" step="0.001" value="0.002" oninput="setRespawnRate(this.value)">
+        </div>
+        <div class="setting">
+            <label>Speed <span class="setting-value" id="speedVal">1.0</span></label>
+            <input type="range" id="speed" min="0.1" max="3" step="0.1" value="1" oninput="setSpeed(this.value)">
+        </div>
+
+        <h3>Noise Field</h3>
+        <div class="setting">
+            <label>Mode</label>
+            <select id="noiseMode" onchange="setNoiseMode(this.value)">
+                <option value="0">Classic</option>
+                <option value="1" selected>Turbulent fBm</option>
+                <option value="2">Ridged</option>
+                <option value="3">Billow</option>
+                <option value="4">Domain Warp</option>
+                <option value="5">Forces Only</option>
+            </select>
+        </div>
+        <div class="setting">
+            <label>Background Strength <span class="setting-value" id="bgStrengthVal">1.0</span></label>
+            <input type="range" id="bgStrength" min="0" max="2" step="0.1" value="1" oninput="setBgStrength(this.value)">
+        </div>
+        <div class="setting">
+            <label>Noise Scale <span class="setting-value" id="noiseScaleVal">0.003</span></label>
+            <input type="range" id="noiseScale" min="0.001" max="0.01" step="0.001" value="0.003" oninput="setNoiseScale(this.value)">
+        </div>
+
+        <h3>Zones</h3>
+        <div class="setting" style="display: flex; align-items: center; justify-content: space-between;">
+            <label>Enable Zones</label>
+            <input type="checkbox" id="zonesEnabled" onchange="setZonesEnabled(this.checked)">
+        </div>
+        <div class="setting">
+            <label>Zones Strength <span class="setting-value" id="zonesStrengthVal">1.0</span></label>
+            <input type="range" id="zonesStrength" min="0.1" max="3" step="0.1" value="1" oninput="setZonesStrength(this.value)">
+        </div>
+
+        <h3>Effects</h3>
+        <div class="setting">
+            <label>Brownian Motion <span class="setting-value" id="brownianVal">1.5</span></label>
+            <input type="range" id="brownian" min="0" max="3" step="0.1" value="1.5" oninput="setBrownian(this.value)">
+        </div>
+        <div class="setting">
+            <label>Global Gravity <span class="setting-value" id="gravityVal">0</span></label>
+            <input type="range" id="gravity" min="-1" max="1" step="0.1" value="0" oninput="setGravity(this.value)">
+        </div>
+        <div class="setting">
+            <label>Global Swirl <span class="setting-value" id="swirlVal">0</span></label>
+            <input type="range" id="swirl" min="-2" max="2" step="0.1" value="0" oninput="setSwirl(this.value)">
+        </div>
+        <div class="setting">
+            <label>Trail Fade <span class="setting-value" id="fadeVal">0.03</span></label>
+            <input type="range" id="fade" min="0.01" max="0.2" step="0.01" value="0.03" oninput="setFade(this.value)">
+        </div>
+
+        <h3>Force Fields</h3>
+        <div class="setting" style="display: flex; align-items: center; justify-content: space-between;">
+            <label>Show Forces</label>
+            <input type="checkbox" id="showForces" onchange="toggleShowForces(this.checked)">
+        </div>
+        <div class="setting">
+            <label>Force Strength <span class="setting-value" id="forceStrengthVal">1.0</span></label>
+            <input type="range" id="forceStrength" min="0" max="3" step="0.1" value="1" oninput="setForceStrength(this.value)">
+        </div>
+        <div class="setting">
+            <label>Spawn Rate <span class="setting-value" id="forceSpawnVal">0</span>/s</label>
+            <input type="range" id="forceSpawn" min="0" max="5" step="0.1" value="0" oninput="setForceSpawn(this.value)">
+        </div>
+        <div class="setting">
+            <label>Lifetime <span class="setting-value" id="forceLifetimeVal">1.0</span>x</label>
+            <input type="range" id="forceLifetime" min="0.1" max="5" step="0.1" value="1" oninput="setForceLifetime(this.value)">
+        </div>
+        <div class="setting">
+            <label>Max Forces <span class="setting-value" id="maxForcesVal">16</span></label>
+            <input type="range" id="maxForces" min="1" max="40" step="1" value="16" oninput="setMaxForces(this.value)">
+        </div>
+        <div class="setting">
+            <label>Max Radius <span class="setting-value" id="maxRadiusVal">200</span></label>
+            <input type="range" id="maxRadius" min="50" max="500" step="10" value="200" oninput="setMaxRadius(this.value)">
+        </div>
+        <div style="display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; align-items: center; margin-bottom: 10px;">
+            <input type="checkbox" id="forceType0" checked onchange="updateForceTypes()">
+            <span style="font-size: 12px; color: rgba(255,255,255,0.7); cursor: pointer;" onclick="spawnForceType(0)">Sink</span>
+            <input type="checkbox" id="forceType1" checked onchange="updateForceTypes()">
+            <span style="font-size: 12px; color: rgba(255,255,255,0.7); cursor: pointer;" onclick="spawnForceType(1)">Source</span>
+            <input type="checkbox" id="forceType2" checked onchange="updateForceTypes()">
+            <span style="font-size: 12px; color: rgba(255,255,255,0.7); cursor: pointer;" onclick="spawnForceType(2)">Vortex</span>
+            <input type="checkbox" id="forceType3" checked onchange="updateForceTypes()">
+            <span style="font-size: 12px; color: rgba(255,255,255,0.7); cursor: pointer;" onclick="spawnForceType(3)">Gravity</span>
+            <input type="checkbox" id="forceType4" checked onchange="updateForceTypes()">
+            <span style="font-size: 12px; color: rgba(255,255,255,0.7); cursor: pointer;" onclick="spawnForceType(4)">Turbulence</span>
+        </div>
+        <div class="quick-buttons">
+            <button onclick="addForce(-1)">Add Random</button>
+            <button onclick="clearForces()">Clear All</button>
+        </div>
+
+        <h3>Mouse Mode</h3>
+        <div class="setting">
+            <select id="mouseMode" onchange="setMouseMode(this.value)">
+                <option value="0" selected>Vortex (Swirl)</option>
+                <option value="1">Attract</option>
+                <option value="2">Repel</option>
+            </select>
+        </div>
+
+        <h3>Colors</h3>
+        <div class="setting">
+            <select id="colorScheme" onchange="setColorScheme(this.value)">
+                <option value="0" selected>Aurora</option>
+                <option value="1">Sunset</option>
+                <option value="2">Ocean</option>
+                <option value="3">Fire</option>
+                <option value="4">Neon</option>
+                <option value="5">Vapor</option>
+                <option value="6">Forest</option>
+                <option value="7">Cosmic</option>
+                <option value="8">Candy</option>
+                <option value="9">Monochrome</option>
+                <option value="10">Rainbow</option>
+                <option value="11">Velocity</option>
+                <option value="12">Direction</option>
+            </select>
+        </div>
+
+        <h3>Actions</h3>
+        <div class="quick-buttons">
+            <button onclick="resetParticles()">Reset</button>
+            <button onclick="randomize()">Randomize</button>
+        </div>
+        <div class="quick-buttons" style="margin-top: 10px;">
+            <button onclick="copyShareLink()" style="flex: 2;">Copy Share Link</button>
+        </div>
+        <div id="copy-toast" style="display: none; margin-top: 10px; padding: 8px; background: rgba(0,255,135,0.2); border-radius: 4px; text-align: center; font-size: 12px; color: #00ff87;">
+            Link copied to clipboard!
+        </div>
+        <div style="margin-top: 15px; text-align: center;">
+            <a href="index-cpu.html" style="color: rgba(255,255,255,0.5); font-size: 11px; text-decoration: none;">Switch to CPU version</a>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button onclick="cycleColorScheme()">Colors</button>
+        <button onclick="setDirectionMode()">Direction</button>
+        <button onclick="cycleNoiseMode()">Noise</button>
+        <button onclick="addRandomForce()">Add Force</button>
+        <button onclick="randomize()">Randomize</button>
+        <button onclick="showHelp()">?</button>
+    </div>
+
+    <div id="webgl-warning">
+        <h2>WebGL2 Not Supported</h2>
+        <p>Your browser doesn't support WebGL2, which is required for the GPU-accelerated version.</p>
+        <p style="margin-top: 15px;"><a href="index-cpu.html">Try the CPU version instead</a></p>
+    </div>
+
+    <canvas id="force-overlay"></canvas>
+
+    <div id="help-modal" onclick="if(event.target === this) showHelp()">
+        <div id="help-content">
+            <h1>Flow Fields</h1>
+            <p class="subtitle">GPU-accelerated generative art</p>
+
+            <p>Hundreds of thousands of particles flow through invisible noise fields, influenced by force fields and mouse interaction.</p>
+
+            <h2>Controls</h2>
+            <ul>
+                <li><strong>Mouse</strong> - Creates a vortex that swirls nearby particles</li>
+                <li><strong>Click</strong> - Spawn a force field at cursor</li>
+                <li><kbd>Space</kbd> - Pause/play</li>
+                <li><kbd>C</kbd> - Cycle color schemes</li>
+                <li><kbd>N</kbd> - Cycle noise modes</li>
+                <li><kbd>R</kbd> - Reset particles</li>
+                <li><kbd>A</kbd> - Add random force field</li>
+                <li><kbd>X</kbd> - Clear all force fields</li>
+                <li><kbd>H</kbd> - Toggle this help</li>
+                <li><kbd>F</kbd> - Toggle force field visibility</li>
+            </ul>
+
+            <h2>Features</h2>
+            <ul>
+                <li><strong>6 noise modes</strong> - Classic, Turbulent fBm, Ridged, Billow, Domain Warp, Forces Only</li>
+                <li><strong>5 force field types</strong> - Sink, Source, Vortex, Gravity, Turbulence</li>
+                <li><strong>13 color schemes</strong> - Aurora, Sunset, Ocean, Fire, Neon, Vapor, Forest, Cosmic, Candy, Monochrome, Rainbow, Velocity, Direction</li>
+                <li><strong>GPU-accelerated</strong> - Up to 100 million particles</li>
+            </ul>
+
+            <p>Click the <strong>Settings</strong> button for full control over all parameters.</p>
+
+            <button class="close-btn" onclick="showHelp()">Got it!</button>
+        </div>
+    </div>
+
+    <script src="flow-webgl.js"></script>
+    <script>
+        let lastTime = performance.now();
+        let frameCount = 0;
+
+        function updateFPS() {
+            frameCount++;
+            const now = performance.now();
+            if (now - lastTime >= 1000) {
+                document.getElementById('fps').textContent = frameCount + ' FPS';
+                frameCount = 0;
+                lastTime = now;
+            }
+            requestAnimationFrame(updateFPS);
+        }
+
+        // Initialize
+        if (!initWebGL()) {
+            document.getElementById('webgl-warning').style.display = 'block';
+        } else {
+            loadFromQueryParams();
+            updateFPS();
+            document.getElementById('particle-display').textContent = flowFieldsGL.config.particleCount.toLocaleString();
+        }
+
+        // UI Functions
+        function toggleSettings() {
+            document.getElementById('settings-panel').classList.toggle('open');
+        }
+
+        function showHelp() {
+            document.getElementById('help-modal').classList.toggle('open');
+        }
+
+        // Force type filtering for auto-spawn
+        let enabledForceTypes = [true, true, true, true, true];
+
+        function updateForceTypes() {
+            for (let i = 0; i < 5; i++) {
+                enabledForceTypes[i] = document.getElementById('forceType' + i).checked;
+            }
+            if (flowFieldsGL) {
+                flowFieldsGL.enabledForceTypes = enabledForceTypes;
+            }
+        }
+
+        // Show forces overlay
+        let showForcesEnabled = false;
+        let forceOverlayCtx = null;
+
+        function toggleShowForces(enabled) {
+            showForcesEnabled = enabled;
+            const overlay = document.getElementById('force-overlay');
+            if (enabled) {
+                overlay.width = window.innerWidth;
+                overlay.height = window.innerHeight;
+                forceOverlayCtx = overlay.getContext('2d');
+                drawForces(); // Start the draw loop
+            } else {
+                if (forceOverlayCtx) {
+                    forceOverlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+                }
+            }
+        }
+
+        function drawForces() {
+            if (!showForcesEnabled || !forceOverlayCtx || !flowFieldsGL) return;
+
+            const ctx = forceOverlayCtx;
+            const canvas = document.getElementById('force-overlay');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const typeColors = ['#ff4444', '#44ff44', '#4444ff', '#ffff44', '#ff44ff'];
+            const typeNames = ['Sink', 'Source', 'Vortex', 'Gravity', 'Turb'];
+
+            for (const f of flowFieldsGL.forceFields) {
+                const x = f.x;
+                const y = canvas.height - f.y; // Flip Y for canvas
+
+                // Draw radius circle
+                ctx.beginPath();
+                ctx.arc(x, y, f.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = typeColors[f.type] || '#ffffff';
+                ctx.globalAlpha = 0.3;
+                ctx.stroke();
+
+                // Draw center dot
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = typeColors[f.type] || '#ffffff';
+                ctx.globalAlpha = 0.8;
+                ctx.fill();
+
+                // Draw label
+                ctx.font = '10px monospace';
+                ctx.fillStyle = '#ffffff';
+                ctx.globalAlpha = 0.6;
+                ctx.fillText(typeNames[f.type] || '?', x + 8, y + 3);
+            }
+            ctx.globalAlpha = 1;
+
+            requestAnimationFrame(drawForces);
+        }
+
+        function setParticleCountLog(logVal) {
+            // Logarithmic slider: 4 = 10,000 particles, 8 = 100,000,000 particles
+            const count = Math.round(Math.pow(10, parseFloat(logVal)));
+            document.getElementById('particleCountVal').textContent = count.toLocaleString();
+            reinitWithParticleCount(count);
+        }
+
+        function setParticleCount(val) {
+            // Direct set (for URL params)
+            document.getElementById('particleCountVal').textContent = parseInt(val).toLocaleString();
+            reinitWithParticleCount(parseInt(val));
+        }
+
+        function setParticleSize(val) {
+            setConfig('particleSize', parseFloat(val));
+            document.getElementById('particleSizeVal').textContent = val;
+        }
+
+        function setParticleOpacity(val) {
+            setConfig('particleOpacity', parseFloat(val));
+            document.getElementById('particleOpacityVal').textContent = val;
+        }
+
+        function setRespawnRate(val) {
+            setConfig('respawnRate', parseFloat(val));
+            document.getElementById('respawnRateVal').textContent = val;
+        }
+
+        function setSpeed(val) {
+            setConfig('speed', parseFloat(val));
+            document.getElementById('speedVal').textContent = val;
+        }
+
+        function setNoiseMode(val) {
+            setConfig('noiseMode', parseInt(val));
+        }
+
+        function setBgStrength(val) {
+            setConfig('backgroundStrength', parseFloat(val));
+            document.getElementById('bgStrengthVal').textContent = val;
+        }
+
+        function setNoiseScale(val) {
+            setConfig('noiseScale', parseFloat(val));
+            document.getElementById('noiseScaleVal').textContent = val;
+        }
+
+        function setZonesEnabled(val) {
+            setConfig('zonesEnabled', val);
+        }
+
+        function setZonesStrength(val) {
+            setConfig('zonesStrength', parseFloat(val));
+            document.getElementById('zonesStrengthVal').textContent = val;
+        }
+
+        function setBrownian(val) {
+            setConfig('brownianMotion', parseFloat(val));
+            document.getElementById('brownianVal').textContent = val;
+        }
+
+        function setGravity(val) {
+            setConfig('globalGravity', parseFloat(val));
+            document.getElementById('gravityVal').textContent = val;
+        }
+
+        function setSwirl(val) {
+            setConfig('globalSwirl', parseFloat(val));
+            document.getElementById('swirlVal').textContent = val;
+        }
+
+        function setFade(val) {
+            setConfig('fadeAmount', parseFloat(val));
+            document.getElementById('fadeVal').textContent = val;
+        }
+
+        function setForceStrength(val) {
+            setConfig('forceFieldStrength', parseFloat(val));
+            document.getElementById('forceStrengthVal').textContent = val;
+        }
+
+        function setForceSpawn(val) {
+            setConfig('forceSpawnRate', parseFloat(val));
+            document.getElementById('forceSpawnVal').textContent = val;
+        }
+
+        function setForceLifetime(val) {
+            setConfig('forceLifetime', parseFloat(val));
+            document.getElementById('forceLifetimeVal').textContent = val;
+        }
+
+        function setMaxForces(val) {
+            if (flowFieldsGL) {
+                flowFieldsGL.maxForceFields = parseInt(val);
+                // Trim excess forces if needed
+                while (flowFieldsGL.forceFields.length > flowFieldsGL.maxForceFields) {
+                    flowFieldsGL.forceFields.shift();
+                }
+            }
+            document.getElementById('maxForcesVal').textContent = val;
+        }
+
+        function setMaxRadius(val) {
+            setConfig('maxForceRadius', parseInt(val));
+            document.getElementById('maxRadiusVal').textContent = val;
+        }
+
+        function setMouseMode(val) {
+            if (flowFieldsGL) flowFieldsGL.mouse.mode = parseInt(val);
+        }
+
+        function setColorScheme(val) {
+            setConfig('colorScheme', parseInt(val));
+        }
+
+        function addForce(type) {
+            if (flowFieldsGL) {
+                flowFieldsGL.addForceField(
+                    Math.random() * window.innerWidth,
+                    Math.random() * window.innerHeight,
+                    type
+                );
+            }
+        }
+
+        function addRandomForce() {
+            if (flowFieldsGL) {
+                flowFieldsGL.addForceField(
+                    Math.random() * window.innerWidth,
+                    Math.random() * window.innerHeight
+                );
+            }
+        }
+
+        function spawnForceType(type) {
+            if (flowFieldsGL) {
+                flowFieldsGL.addForceField(
+                    Math.random() * window.innerWidth,
+                    Math.random() * window.innerHeight,
+                    type
+                );
+            }
+        }
+
+        function clearForces() {
+            if (flowFieldsGL) flowFieldsGL.forceFields = [];
+        }
+
+        function resetParticles() {
+            if (flowFieldsGL) flowFieldsGL.initializeParticles();
+        }
+
+        function randomize() {
+            const settings = {
+                noiseMode: Math.floor(Math.random() * 6),  // Include Forces Only mode
+                colorScheme: Math.floor(Math.random() * 13),
+                brownianMotion: +(0.2 + Math.random() * 1.3).toFixed(2),  // 0.2-1.5
+                backgroundStrength: +(0.6 + Math.random() * 1.0).toFixed(2),  // 0.6-1.6
+                noiseScale: +(0.002 + Math.random() * 0.005).toFixed(4),  // 0.002-0.007
+                speed: +(0.5 + Math.random() * 1.5).toFixed(2),  // 0.5-2.0
+                particleSize: +(1.0 + Math.random() * 2.0).toFixed(1),  // 1.0-3.0
+                particleOpacity: +(0.08 + Math.random() * 0.15).toFixed(2),  // 0.08-0.23
+                respawnRate: +(0.001 + Math.random() * 0.01).toFixed(3),  // 0.001-0.011
+                globalGravity: +(Math.random() * 0.4 - 0.2).toFixed(2),  // -0.2 to 0.2
+                globalSwirl: +(Math.random() * 1.0 - 0.5).toFixed(2),  // -0.5 to 0.5
+                fadeAmount: +(0.01 + Math.random() * 0.1).toFixed(2),  // 0.01-0.11
+                forceFieldStrength: +(0.6 + Math.random() * 0.8).toFixed(2),  // 0.6-1.4
+                forceSpawnRate: +(Math.random() * 2).toFixed(1),  // 0-2 per second
+                forceLifetime: +(0.5 + Math.random() * 2).toFixed(1),  // 0.5-2.5x
+                maxForceRadius: Math.floor(100 + Math.random() * 300),  // 100-400
+                zonesEnabled: Math.random() > 0.6,  // 40% chance
+                zonesStrength: +(0.5 + Math.random() * 1.0).toFixed(2)  // 0.5-1.5
+            };
+
+            // Apply all settings
+            for (const [key, value] of Object.entries(settings)) {
+                setConfig(key, value);
+            }
+
+            // Sync UI elements
+            document.getElementById('noiseMode').value = settings.noiseMode;
+            document.getElementById('colorScheme').value = settings.colorScheme;
+            document.getElementById('brownian').value = settings.brownianMotion;
+            document.getElementById('brownianVal').textContent = settings.brownianMotion;
+            document.getElementById('bgStrength').value = settings.backgroundStrength;
+            document.getElementById('bgStrengthVal').textContent = settings.backgroundStrength;
+            document.getElementById('noiseScale').value = settings.noiseScale;
+            document.getElementById('noiseScaleVal').textContent = settings.noiseScale;
+            document.getElementById('speed').value = settings.speed;
+            document.getElementById('speedVal').textContent = settings.speed;
+            document.getElementById('particleSize').value = settings.particleSize;
+            document.getElementById('particleSizeVal').textContent = settings.particleSize;
+            document.getElementById('particleOpacity').value = settings.particleOpacity;
+            document.getElementById('particleOpacityVal').textContent = settings.particleOpacity;
+            document.getElementById('respawnRate').value = settings.respawnRate;
+            document.getElementById('respawnRateVal').textContent = settings.respawnRate;
+            document.getElementById('gravity').value = settings.globalGravity;
+            document.getElementById('gravityVal').textContent = settings.globalGravity;
+            document.getElementById('swirl').value = settings.globalSwirl;
+            document.getElementById('swirlVal').textContent = settings.globalSwirl;
+            document.getElementById('fade').value = settings.fadeAmount;
+            document.getElementById('fadeVal').textContent = settings.fadeAmount;
+            document.getElementById('forceStrength').value = settings.forceFieldStrength;
+            document.getElementById('forceStrengthVal').textContent = settings.forceFieldStrength;
+            document.getElementById('forceSpawn').value = settings.forceSpawnRate;
+            document.getElementById('forceSpawnVal').textContent = settings.forceSpawnRate;
+            document.getElementById('forceLifetime').value = settings.forceLifetime;
+            document.getElementById('forceLifetimeVal').textContent = settings.forceLifetime;
+            document.getElementById('maxRadius').value = settings.maxForceRadius;
+            document.getElementById('maxRadiusVal').textContent = settings.maxForceRadius;
+            document.getElementById('zonesEnabled').checked = settings.zonesEnabled;
+            document.getElementById('zonesStrength').value = settings.zonesStrength;
+            document.getElementById('zonesStrengthVal').textContent = settings.zonesStrength;
+        }
+
+        function cycleColorScheme() {
+            if (flowFieldsGL) {
+                flowFieldsGL.config.colorScheme = (flowFieldsGL.config.colorScheme + 1) % 13;
+                document.getElementById('colorScheme').value = flowFieldsGL.config.colorScheme;
+            }
+        }
+
+        function setDirectionMode() {
+            if (flowFieldsGL) {
+                flowFieldsGL.config.colorScheme = 12;
+                document.getElementById('colorScheme').value = 12;
+            }
+        }
+
+        function cycleNoiseMode() {
+            if (flowFieldsGL) {
+                flowFieldsGL.config.noiseMode = (flowFieldsGL.config.noiseMode + 1) % 6;
+                document.getElementById('noiseMode').value = flowFieldsGL.config.noiseMode;
+            }
+        }
+
+        // Share link functionality
+        function copyShareLink() {
+            if (!flowFieldsGL) return;
+            const c = flowFieldsGL.config;
+            const params = new URLSearchParams({
+                particles: c.particleCount,
+                opacity: c.particleOpacity,
+                size: c.particleSize,
+                speed: c.speed,
+                noise: c.noiseMode,
+                noiseScale: c.noiseScale,
+                bgStrength: c.backgroundStrength,
+                forceStrength: c.forceFieldStrength,
+                forceSpawn: c.forceSpawnRate,
+                forceLife: c.forceLifetime,
+                maxForces: flowFieldsGL.maxForceFields,
+                maxRadius: c.maxForceRadius,
+                brownian: c.brownianMotion,
+                gravity: c.globalGravity,
+                swirl: c.globalSwirl,
+                fade: c.fadeAmount,
+                respawn: c.respawnRate,
+                zones: c.zonesEnabled ? 1 : 0,
+                zonesStr: c.zonesStrength,
+                color: c.colorScheme
+            });
+            const url = window.location.origin + window.location.pathname + '?' + params.toString();
+            navigator.clipboard.writeText(url).then(() => {
+                const toast = document.getElementById('copy-toast');
+                toast.style.display = 'block';
+                setTimeout(() => toast.style.display = 'none', 2000);
+            });
+        }
+
+        function loadFromQueryParams() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.size === 0) return;
+
+            const mappings = {
+                particles: ['particleCount', parseInt],
+                opacity: ['particleOpacity', parseFloat],
+                size: ['particleSize', parseFloat],
+                speed: ['speed', parseFloat],
+                noise: ['noiseMode', parseInt],
+                noiseScale: ['noiseScale', parseFloat],
+                bgStrength: ['backgroundStrength', parseFloat],
+                forceStrength: ['forceFieldStrength', parseFloat],
+                forceSpawn: ['forceSpawnRate', parseFloat],
+                forceLife: ['forceLifetime', parseFloat],
+                maxRadius: ['maxForceRadius', parseInt],
+                brownian: ['brownianMotion', parseFloat],
+                gravity: ['globalGravity', parseFloat],
+                swirl: ['globalSwirl', parseFloat],
+                fade: ['fadeAmount', parseFloat],
+                respawn: ['respawnRate', parseFloat],
+                zones: ['zonesEnabled', v => v === '1'],
+                zonesStr: ['zonesStrength', parseFloat],
+                color: ['colorScheme', parseInt]
+            };
+
+            for (const [param, [configKey, parser]] of Object.entries(mappings)) {
+                if (params.has(param)) {
+                    flowFieldsGL.config[configKey] = parser(params.get(param));
+                }
+            }
+
+            // Handle maxForces separately (not in config)
+            if (params.has('maxForces')) {
+                flowFieldsGL.maxForceFields = parseInt(params.get('maxForces'));
+            }
+
+            // Update UI to match loaded settings
+            updateUIFromConfig();
+        }
+
+        function updateUIFromConfig() {
+            if (!flowFieldsGL) return;
+            const c = flowFieldsGL.config;
+
+            document.getElementById('particleCount').value = Math.log10(c.particleCount).toFixed(1);
+            document.getElementById('particleCountVal').textContent = c.particleCount.toLocaleString();
+            document.getElementById('particleOpacity').value = c.particleOpacity;
+            document.getElementById('particleOpacityVal').textContent = c.particleOpacity;
+            document.getElementById('particleSize').value = c.particleSize;
+            document.getElementById('particleSizeVal').textContent = c.particleSize;
+            document.getElementById('respawnRate').value = c.respawnRate;
+            document.getElementById('respawnRateVal').textContent = c.respawnRate;
+            document.getElementById('speed').value = c.speed;
+            document.getElementById('speedVal').textContent = c.speed;
+            document.getElementById('noiseMode').value = c.noiseMode;
+            document.getElementById('noiseScale').value = c.noiseScale;
+            document.getElementById('noiseScaleVal').textContent = c.noiseScale;
+            document.getElementById('bgStrength').value = c.backgroundStrength;
+            document.getElementById('bgStrengthVal').textContent = c.backgroundStrength;
+            document.getElementById('zonesEnabled').checked = c.zonesEnabled;
+            document.getElementById('zonesStrength').value = c.zonesStrength;
+            document.getElementById('zonesStrengthVal').textContent = c.zonesStrength;
+            document.getElementById('brownian').value = c.brownianMotion;
+            document.getElementById('brownianVal').textContent = c.brownianMotion;
+            document.getElementById('gravity').value = c.globalGravity;
+            document.getElementById('gravityVal').textContent = c.globalGravity;
+            document.getElementById('swirl').value = c.globalSwirl;
+            document.getElementById('swirlVal').textContent = c.globalSwirl;
+            document.getElementById('fade').value = c.fadeAmount;
+            document.getElementById('fadeVal').textContent = c.fadeAmount;
+            document.getElementById('forceStrength').value = c.forceFieldStrength;
+            document.getElementById('forceStrengthVal').textContent = c.forceFieldStrength;
+            document.getElementById('forceSpawn').value = c.forceSpawnRate;
+            document.getElementById('forceSpawnVal').textContent = c.forceSpawnRate;
+            document.getElementById('forceLifetime').value = c.forceLifetime;
+            document.getElementById('forceLifetimeVal').textContent = c.forceLifetime;
+            document.getElementById('maxForces').value = flowFieldsGL.maxForceFields;
+            document.getElementById('maxForcesVal').textContent = flowFieldsGL.maxForceFields;
+            document.getElementById('maxRadius').value = c.maxForceRadius;
+            document.getElementById('maxRadiusVal').textContent = c.maxForceRadius;
+            document.getElementById('colorScheme').value = c.colorScheme;
+            document.getElementById('particle-display').textContent = c.particleCount.toLocaleString();
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'c': cycleColorScheme(); break;
+                case 'n': cycleNoiseMode(); break;
+                case 'r': resetParticles(); break;
+                case 'a': addRandomForce(); break;
+                case 'x': clearForces(); break;
+                case 'h': showHelp(); break;
+                case 'f':
+                    const checkbox = document.getElementById('showForces');
+                    checkbox.checked = !checkbox.checked;
+                    toggleShowForces(checkbox.checked);
+                    break;
+                case ' ':
+                    e.preventDefault();
+                    if (flowFieldsGL) {
+                        flowFieldsGL.paused = !flowFieldsGL.paused;
+                    }
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>

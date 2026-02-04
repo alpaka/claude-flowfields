@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flow Fields - Interactive Generative Art</title>
+
+    <!-- SEO -->
+    <meta name="description" content="Interactive generative art with particle flow fields, force fields, and emergent behaviors. Features multiple noise modes, particle interactions, and customizable visuals. Created by Claude.">
+    <meta name="keywords" content="generative art, flow fields, particles, creative coding, interactive art, canvas, visualization, perlin noise">
+    <meta name="author" content="Claude (Anthropic)">
+
+    <!-- Open Graph / Social -->
+    <meta property="og:title" content="Flow Fields - Interactive Generative Art">
+    <meta property="og:description" content="Mesmerizing particle simulations with flow fields, vortexes, and emergent behaviors. Fully interactive with customizable settings.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://flowfields.at-st.net">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Flow Fields - Interactive Generative Art">
+    <meta name="twitter:description" content="Mesmerizing particle simulations with flow fields, vortexes, and emergent behaviors.">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #0a0a0a;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+
+        /* Settings Panel */
+        #settings-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 14px;
+            z-index: 200;
+        }
+        #settings-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        #settings-panel {
+            position: fixed;
+            top: 0;
+            right: -320px;
+            width: 300px;
+            height: 100vh;
+            background: rgba(15, 15, 25, 0.95);
+            border-left: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            overflow-y: auto;
+            transition: right 0.3s ease;
+            z-index: 150;
+        }
+        #settings-panel.open {
+            right: 0;
+        }
+        #settings-panel h3 {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 14px;
+            margin: 20px 0 10px 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        #settings-panel h3:first-child {
+            margin-top: 40px;
+        }
+        .setting {
+            margin-bottom: 15px;
+        }
+        .setting label {
+            display: block;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        .setting input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .setting input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4a90d9;
+            cursor: pointer;
+        }
+        .setting select {
+            width: 100%;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .setting select option {
+            background: #1a1a2e;
+        }
+        .setting-value {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 11px;
+            float: right;
+        }
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+        }
+        .toggle-row label {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+        }
+        .toggle {
+            width: 40px;
+            height: 22px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 11px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .toggle.active {
+            background: #4a90d9;
+        }
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: left 0.3s;
+        }
+        .toggle.active::after {
+            left: 20px;
+        }
+
+        /* Quick buttons */
+        .quick-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        .quick-buttons button {
+            flex: 1;
+            min-width: 60px;
+            padding: 8px;
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .quick-buttons button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        .quick-buttons button.sink { border-color: rgba(255, 100, 100, 0.5); }
+        .quick-buttons button.source { border-color: rgba(100, 255, 100, 0.5); }
+        .quick-buttons button.vortex { border-color: rgba(100, 100, 255, 0.5); }
+        .quick-buttons button.gravity { border-color: rgba(255, 200, 0, 0.5); }
+
+        /* Info overlay */
+        #info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.5);
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        /* Help button and modal */
+        #help-toggle {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            border-radius: 50%;
+            font-size: 16px;
+            z-index: 200;
+        }
+        #help-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        #help-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 300;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        #help-modal.open {
+            display: flex;
+        }
+        #help-content {
+            background: rgba(20, 20, 35, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            color: white;
+        }
+        #help-content h1 {
+            font-size: 1.8em;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00ff87, #60efff, #ff00ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        #help-content .subtitle {
+            color: rgba(255, 255, 255, 0.5);
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+        #help-content h2 {
+            font-size: 1.1em;
+            margin: 20px 0 10px 0;
+            color: #60efff;
+        }
+        #help-content p, #help-content li {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+        #help-content ul {
+            margin-left: 20px;
+        }
+        #help-content kbd {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        #help-content .close-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #help-content .close-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        #help-content .credits {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.4);
+        }
+        #help-content a {
+            color: #60efff;
+        }
+
+        /* Bottom controls */
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+        #controls button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        #controls button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="info">Flow Fields - Turbulent fBm</div>
+
+    <button id="help-toggle" onclick="toggleHelp()">?</button>
+
+    <div id="help-modal" onclick="if(event.target === this) toggleHelp()">
+        <div id="help-content">
+            <h1>Flow Fields</h1>
+            <p class="subtitle">Interactive generative art</p>
+
+            <p>Thousands of particles flow through invisible noise fields, influenced by force fields, mouse interaction, and each other. Every reload creates a unique pattern.</p>
+
+            <h2>Controls</h2>
+            <ul>
+                <li><strong>Mouse</strong> - Creates a vortex that swirls nearby particles</li>
+                <li><strong>Click</strong> - Spawn a force field at cursor</li>
+                <li><strong>Right-click</strong> - Cycle spawn type (sink/source/vortex/etc.)</li>
+                <li><kbd>Space</kbd> - Pause/play</li>
+                <li><kbd>C</kbd> - Cycle color schemes</li>
+                <li><kbd>N</kbd> - Cycle noise modes</li>
+                <li><kbd>R</kbd> - Reset with new pattern</li>
+                <li><kbd>S</kbd> - Save as PNG</li>
+            </ul>
+
+            <h2>Features</h2>
+            <ul>
+                <li><strong>6 noise modes</strong> - Classic, Turbulent fBm, Ridged, Billow, Domain Warp, Forces Only</li>
+                <li><strong>8 force field types</strong> - Sink, Source, Vortex, Gravity, Shear, Repulsor, Turbulence, Lane</li>
+                <li><strong>5 particle interaction modes</strong> - None, Attract, Repel, Align (flocking), Zones (spatially varying)</li>
+                <li><strong>8 color schemes</strong> - Aurora, Sunset, Ocean, Forest, Fire, Neon, Monochrome, Vapor</li>
+            </ul>
+
+            <p>Click the <strong>Settings</strong> button for full control over all parameters.</p>
+
+            <button class="close-btn" onclick="toggleHelp()">Got it!</button>
+
+            <div class="credits">
+                Created by <a href="https://claude.ai" target="_blank">Claude</a> (Anthropic) - February 2026<br>
+                Pure HTML/CSS/JavaScript, no dependencies<br><br>
+                <a href="index-webgl.html" style="color: #ff71ce;">Try WebGL version (500k+ particles)</a>
+            </div>
+        </div>
+    </div>
+
+    <button id="settings-toggle" onclick="toggleSettings()">⚙ Settings</button>
+
+    <div id="settings-panel">
+        <h3>Noise Field</h3>
+        <div class="setting">
+            <label>Mode</label>
+            <select id="noiseMode" onchange="setNoiseMode(this.value)">
+                <option value="0">Classic</option>
+                <option value="1" selected>Turbulent fBm</option>
+                <option value="2">Ridged</option>
+                <option value="3">Billow</option>
+                <option value="4">Domain Warp</option>
+                <option value="5">Forces Only</option>
+            </select>
+        </div>
+        <div class="setting">
+            <label>Background Strength <span class="setting-value" id="bgStrVal">1.0</span></label>
+            <input type="range" id="bgStrength" min="0" max="2" step="0.1" value="1" oninput="setBackgroundStrength(this.value)">
+        </div>
+        <div class="setting">
+            <label>Noise Scale <span class="setting-value" id="noiseScaleVal">0.003</span></label>
+            <input type="range" id="noiseScale" min="0.001" max="0.01" step="0.001" value="0.003" oninput="setNoiseScale(this.value)">
+        </div>
+
+        <h3>Force Fields</h3>
+        <div class="setting">
+            <label>Force Strength <span class="setting-value" id="forceStrVal">1.0</span></label>
+            <input type="range" id="forceStrength" min="0" max="3" step="0.1" value="1" oninput="setForceStrength(this.value)">
+        </div>
+        <div class="setting">
+            <label>Spawn Rate <span class="setting-value" id="spawnRateVal">0.008</span></label>
+            <input type="range" id="spawnRate" min="0" max="0.05" step="0.002" value="0.008" oninput="setSpawnRate(this.value)">
+        </div>
+        <div class="setting">
+            <label>Field Drift Speed <span class="setting-value" id="driftSpeedVal">0.5</span></label>
+            <input type="range" id="driftSpeed" min="0" max="3" step="0.1" value="0.5" oninput="setDriftSpeed(this.value)">
+        </div>
+        <div class="toggle-row">
+            <label>Show Force Fields</label>
+            <div class="toggle active" id="showFieldsToggle" onclick="toggleForceFieldsUI()"></div>
+        </div>
+        <div class="quick-buttons">
+            <button class="sink" onclick="spawnForceField('sink')">Sink</button>
+            <button class="source" onclick="spawnForceField('source')">Source</button>
+            <button class="vortex" onclick="spawnForceField('vortex')">Vortex</button>
+            <button class="gravity" onclick="spawnForceField('gravity')">Gravity</button>
+        </div>
+        <div class="quick-buttons" style="margin-top: 5px;">
+            <button style="border-color: rgba(255, 136, 68, 0.5);" onclick="spawnForceField('shear')">Shear</button>
+            <button style="border-color: rgba(255, 34, 34, 0.5);" onclick="spawnForceField('repulsor')">Repulsor</button>
+            <button style="border-color: rgba(170, 68, 255, 0.5);" onclick="spawnForceField('turbulence')">Turbulence</button>
+            <button style="border-color: rgba(68, 170, 255, 0.5);" onclick="spawnForceField('lane')">Lane</button>
+        </div>
+        <div class="quick-buttons" style="margin-top: 5px;">
+            <button onclick="clearForceFields()">Clear All</button>
+            <button onclick="spawnChaos()">Chaos!</button>
+        </div>
+
+        <h3>Particles</h3>
+        <div class="setting">
+            <label>Particle Count <span class="setting-value" id="particleCountVal">5000</span></label>
+            <input type="range" id="particleCount" min="500" max="20000" step="500" value="5000" oninput="setParticleCount(this.value)">
+        </div>
+        <div class="setting">
+            <label>Respawn Rate <span class="setting-value" id="respawnRateVal">0.005</span></label>
+            <input type="range" id="respawnRate" min="0" max="0.05" step="0.005" value="0.005" oninput="setRespawnRate(this.value)">
+        </div>
+        <div class="setting">
+            <label>Speed <span class="setting-value" id="speedVal">2</span></label>
+            <input type="range" id="speed" min="0.5" max="5" step="0.1" value="2" oninput="setSpeed(this.value)">
+        </div>
+        <div class="setting">
+            <label>Trail Length <span class="setting-value" id="trailVal">1</span></label>
+            <input type="range" id="trailLength" min="0.5" max="5" step="0.1" value="1" oninput="setTrailLength(this.value)">
+        </div>
+        <div class="setting">
+            <label>Brownian Motion <span class="setting-value" id="brownianVal">1</span></label>
+            <input type="range" id="brownian" min="0" max="3" step="0.1" value="1" oninput="setBrownian(this.value)">
+        </div>
+        <div class="toggle-row">
+            <label>Velocity Coloring</label>
+            <div class="toggle" id="velocityColorToggle" onclick="toggleVelocityColor()"></div>
+        </div>
+
+        <h3>Particle Interactions</h3>
+        <div class="setting">
+            <label>Mode</label>
+            <select id="interactionMode" onchange="setInteractionMode(this.value)">
+                <option value="none">None</option>
+                <option value="attract">Attract</option>
+                <option value="repel">Repel</option>
+                <option value="align">Align (Flocking)</option>
+                <option value="zones" selected>Zones (Random)</option>
+            </select>
+        </div>
+        <div class="setting">
+            <label>Interaction Strength <span class="setting-value" id="interactStrVal">1.0</span></label>
+            <input type="range" id="interactStrength" min="0" max="3" step="0.1" value="1" oninput="setInteractionStrength(this.value)">
+        </div>
+        <div class="setting">
+            <label>Interaction Radius <span class="setting-value" id="interactRadVal">50</span></label>
+            <input type="range" id="interactRadius" min="10" max="100" step="5" value="50" oninput="setInteractionRadius(this.value)">
+        </div>
+
+        <h3>Mouse Interaction</h3>
+        <div class="setting">
+            <label>Mode</label>
+            <select id="mouseMode" onchange="setMouseMode(this.value)">
+                <option value="vortex">Vortex (Swirl)</option>
+                <option value="attract">Attract</option>
+                <option value="repel">Repel</option>
+            </select>
+        </div>
+        <div class="setting">
+            <label>Radius <span class="setting-value" id="mouseRadVal">150</span></label>
+            <input type="range" id="mouseRadius" min="50" max="400" step="10" value="150" oninput="setMouseRadius(this.value)">
+        </div>
+
+        <h3>Effects</h3>
+        <div class="setting">
+            <label>Global Gravity <span class="setting-value" id="gravityVal">0</span></label>
+            <input type="range" id="globalGravity" min="-0.5" max="0.5" step="0.02" value="0" oninput="setGlobalGravity(this.value)">
+        </div>
+        <div class="setting">
+            <label>Fade Amount <span class="setting-value" id="fadeVal">0.03</span></label>
+            <input type="range" id="fadeAmount" min="0.01" max="0.2" step="0.01" value="0.03" oninput="setFadeAmount(this.value)">
+        </div>
+
+        <h3>Colors</h3>
+        <div class="setting">
+            <label>Color Scheme</label>
+            <select id="colorScheme" onchange="setColorScheme(this.value)">
+                <option value="0">Aurora</option>
+                <option value="1">Sunset</option>
+                <option value="2">Ocean</option>
+                <option value="3">Forest</option>
+                <option value="4">Fire</option>
+                <option value="5">Neon</option>
+                <option value="6">Monochrome</option>
+                <option value="7">Vapor</option>
+            </select>
+        </div>
+
+        <h3>Actions</h3>
+        <div class="quick-buttons">
+            <button onclick="reset()">Reset</button>
+            <button onclick="togglePause()">Pause</button>
+            <button onclick="saveImage()">Save PNG</button>
+        </div>
+        <div class="quick-buttons" style="margin-top: 10px;">
+            <button onclick="copyShareLink()" style="flex: 2;">Copy Share Link</button>
+        </div>
+        <div id="copy-toast" style="display: none; margin-top: 10px; padding: 8px; background: rgba(0,255,135,0.2); border-radius: 4px; text-align: center; font-size: 12px; color: #00ff87;">
+            Link copied to clipboard!
+        </div>
+        <div style="margin-top: 15px; text-align: center;">
+            <a href="index.html" style="color: rgba(255,255,255,0.5); font-size: 11px; text-decoration: none;">Switch to WebGL version (more particles)</a>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button onclick="reset()">New Pattern</button>
+        <button onclick="togglePause()">Pause/Play</button>
+        <button onclick="cycleColorScheme()">Colors</button>
+        <button onclick="cycleNoiseMode()">Noise Mode</button>
+    </div>
+
+    <script src="flow.js"></script>
+    <script>
+        // Settings panel toggle
+        function toggleSettings() {
+            document.getElementById('settings-panel').classList.toggle('open');
+        }
+
+        // Help modal toggle
+        function toggleHelp() {
+            document.getElementById('help-modal').classList.toggle('open');
+        }
+
+        // Setting functions
+        function setNoiseMode(val) {
+            config.noiseMode = parseInt(val);
+            const modeNames = ['Classic', 'Turbulent fBm', 'Ridged', 'Billow', 'Domain Warp', 'Forces Only'];
+            document.getElementById('info').textContent = 'Flow Fields - ' + modeNames[config.noiseMode];
+        }
+        function setBackgroundStrength(val) {
+            config.backgroundStrength = parseFloat(val);
+            document.getElementById('bgStrVal').textContent = val;
+        }
+        function setNoiseScale(val) {
+            config.noiseScale = parseFloat(val);
+            document.getElementById('noiseScaleVal').textContent = val;
+        }
+        function setForceStrength(val) {
+            config.forceFieldStrength = parseFloat(val);
+            document.getElementById('forceStrVal').textContent = val;
+        }
+        function setSpawnRate(val) {
+            config.spawnRate = parseFloat(val);
+            document.getElementById('spawnRateVal').textContent = val;
+        }
+        function setDriftSpeed(val) {
+            config.fieldDriftSpeed = parseFloat(val);
+            document.getElementById('driftSpeedVal').textContent = val;
+            // Update existing force fields with new speed range
+            for (const field of forceFields) {
+                const speedMultiplier = 0.5 + Math.random() * 1.5;
+                const currentSpeed = Math.sqrt(field.vx * field.vx + field.vy * field.vy);
+                if (currentSpeed > 0) {
+                    const angle = Math.atan2(field.vy, field.vx);
+                    const newSpeed = config.fieldDriftSpeed * speedMultiplier * 0.5;
+                    field.vx = Math.cos(angle) * newSpeed;
+                    field.vy = Math.sin(angle) * newSpeed;
+                }
+            }
+        }
+        function setParticleCount(val) {
+            const newCount = parseInt(val);
+            document.getElementById('particleCountVal').textContent = val;
+
+            // Add or remove particles to match new count
+            if (newCount > particles.length) {
+                for (let i = particles.length; i < newCount; i++) {
+                    particles.push(new Particle());
+                }
+            } else if (newCount < particles.length) {
+                particles.length = newCount;
+            }
+            config.particleCount = newCount;
+        }
+        function setRespawnRate(val) {
+            config.respawnRate = parseFloat(val);
+            document.getElementById('respawnRateVal').textContent = val;
+        }
+        function setSpeed(val) {
+            config.speed = parseFloat(val);
+            document.getElementById('speedVal').textContent = val;
+        }
+        function setTrailLength(val) {
+            config.trailLength = parseFloat(val);
+            document.getElementById('trailVal').textContent = val;
+        }
+        function setBrownian(val) {
+            config.brownianMotion = parseFloat(val);
+            document.getElementById('brownianVal').textContent = val;
+        }
+        function setMouseMode(val) {
+            config.mouseMode = val;
+        }
+        function setMouseRadius(val) {
+            mouse.radius = parseInt(val);
+            document.getElementById('mouseRadVal').textContent = val;
+        }
+        function setGlobalGravity(val) {
+            config.globalGravity = parseFloat(val);
+            document.getElementById('gravityVal').textContent = val;
+        }
+        function setFadeAmount(val) {
+            config.fadeAmount = parseFloat(val);
+            document.getElementById('fadeVal').textContent = val;
+        }
+        function setColorScheme(val) {
+            config.colorScheme = parseInt(val);
+            for (const p of particles) {
+                p.colorIndex = Math.floor(Math.random() * colorSchemes[config.colorScheme].length);
+            }
+        }
+        function toggleForceFieldsUI() {
+            showForceFields = !showForceFields;
+            document.getElementById('showFieldsToggle').classList.toggle('active');
+        }
+        function toggleVelocityColor() {
+            config.velocityColor = !config.velocityColor;
+            document.getElementById('velocityColorToggle').classList.toggle('active');
+        }
+        function setInteractionMode(val) {
+            config.particleInteraction = val;
+        }
+        function setInteractionStrength(val) {
+            config.interactionStrength = parseFloat(val);
+            document.getElementById('interactStrVal').textContent = val;
+        }
+        function setInteractionRadius(val) {
+            config.interactionRadius = parseInt(val);
+            document.getElementById('interactRadVal').textContent = val;
+        }
+        function spawnChaos() {
+            for (let i = 0; i < 6; i++) {
+                spawnForceField();
+            }
+        }
+
+        // Share link functionality
+        function copyShareLink() {
+            const params = new URLSearchParams({
+                particles: config.particleCount,
+                noise: config.noiseMode,
+                noiseScale: config.noiseScale,
+                speed: config.speed,
+                bgStrength: config.backgroundStrength,
+                forceStrength: config.forceFieldStrength,
+                brownian: config.brownianMotion,
+                fade: config.fadeAmount,
+                trail: config.trailLength,
+                gravity: config.globalGravity,
+                color: config.colorScheme,
+                interact: config.particleInteraction,
+                interactStr: config.interactionStrength,
+                interactRad: config.interactionRadius,
+                respawn: config.respawnRate,
+                velocity: config.velocityColor ? 1 : 0,
+                mouseMode: config.mouseMode,
+                mouseRad: mouse.radius
+            });
+            const url = window.location.origin + window.location.pathname + '?' + params.toString();
+            navigator.clipboard.writeText(url).then(() => {
+                const toast = document.getElementById('copy-toast');
+                toast.style.display = 'block';
+                setTimeout(() => toast.style.display = 'none', 2000);
+            });
+        }
+
+        function loadFromQueryParams() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.size === 0) return;
+
+            const mappings = {
+                particles: [v => { config.particleCount = parseInt(v); }],
+                noise: [v => { config.noiseMode = parseInt(v); }],
+                noiseScale: [v => { config.noiseScale = parseFloat(v); }],
+                speed: [v => { config.speed = parseFloat(v); }],
+                bgStrength: [v => { config.backgroundStrength = parseFloat(v); }],
+                forceStrength: [v => { config.forceFieldStrength = parseFloat(v); }],
+                brownian: [v => { config.brownianMotion = parseFloat(v); }],
+                fade: [v => { config.fadeAmount = parseFloat(v); }],
+                trail: [v => { config.trailLength = parseFloat(v); }],
+                gravity: [v => { config.globalGravity = parseFloat(v); }],
+                color: [v => { config.colorScheme = parseInt(v); }],
+                interact: [v => { config.particleInteraction = v; }],
+                interactStr: [v => { config.interactionStrength = parseFloat(v); }],
+                interactRad: [v => { config.interactionRadius = parseInt(v); }],
+                respawn: [v => { config.respawnRate = parseFloat(v); }],
+                velocity: [v => { config.velocityColor = v === '1'; }],
+                mouseMode: [v => { config.mouseMode = v; }],
+                mouseRad: [v => { mouse.radius = parseInt(v); }]
+            };
+
+            for (const [param, [setter]] of Object.entries(mappings)) {
+                if (params.has(param)) {
+                    setter(params.get(param));
+                }
+            }
+
+            // Reinitialize with new particle count
+            init();
+            updateUIFromConfig();
+        }
+
+        function updateUIFromConfig() {
+            document.getElementById('particleCount').value = config.particleCount;
+            document.getElementById('particleCountVal').textContent = config.particleCount.toLocaleString();
+            document.getElementById('noiseMode').value = config.noiseMode;
+            document.getElementById('noiseScale').value = config.noiseScale;
+            document.getElementById('noiseScaleVal').textContent = config.noiseScale;
+            document.getElementById('speed').value = config.speed;
+            document.getElementById('speedVal').textContent = config.speed;
+            document.getElementById('bgStrength').value = config.backgroundStrength;
+            document.getElementById('bgStrVal').textContent = config.backgroundStrength;
+            document.getElementById('forceStrength').value = config.forceFieldStrength;
+            document.getElementById('forceStrVal').textContent = config.forceFieldStrength;
+            document.getElementById('brownian').value = config.brownianMotion;
+            document.getElementById('brownianVal').textContent = config.brownianMotion;
+            document.getElementById('fade').value = config.fadeAmount;
+            document.getElementById('fadeVal').textContent = config.fadeAmount;
+            document.getElementById('trailLength').value = config.trailLength;
+            document.getElementById('trailVal').textContent = config.trailLength;
+            document.getElementById('gravity').value = config.globalGravity;
+            document.getElementById('gravityVal').textContent = config.globalGravity;
+            document.getElementById('colorScheme').value = config.colorScheme;
+            document.getElementById('interactionMode').value = config.particleInteraction;
+            document.getElementById('interactStrength').value = config.interactionStrength;
+            document.getElementById('interactStrVal').textContent = config.interactionStrength;
+            document.getElementById('interactRadius').value = config.interactionRadius;
+            document.getElementById('interactRadVal').textContent = config.interactionRadius;
+            document.getElementById('respawnRate').value = config.respawnRate;
+            document.getElementById('respawnRateVal').textContent = config.respawnRate;
+            document.getElementById('mouseMode').value = config.mouseMode;
+            document.getElementById('mouseRadius').value = mouse.radius;
+            document.getElementById('mouseRadVal').textContent = mouse.radius;
+            if (config.velocityColor) {
+                document.getElementById('velocityColorToggle').classList.add('active');
+            }
+            const modeNames = ['Classic', 'Turbulent fBm', 'Ridged', 'Billow', 'Domain Warp', 'Forces Only'];
+            document.getElementById('info').textContent = 'Flow Fields - ' + modeNames[config.noiseMode];
+        }
+
+        // Load settings from URL on page load
+        window.addEventListener('load', loadFromQueryParams);
+    </script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rainbow Life - Colorful Cellular Automaton</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+        }
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+        button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        #info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: monospace;
+            font-size: 12px;
+        }
+        #instructions {
+            position: fixed;
+            top: 50px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.4);
+            font-family: monospace;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="info">Rainbow Life - Generation 0</div>
+    <div id="instructions">
+        Click/drag to draw cells<br>
+        Space to pause/play<br>
+        R to randomize
+    </div>
+    <div id="controls">
+        <button onclick="togglePause()">Pause/Play</button>
+        <button onclick="randomize()">Randomize</button>
+        <button onclick="clear()">Clear</button>
+        <button onclick="cycleRules()">Change Rules</button>
+        <button onclick="toggleTrails()">Toggle Trails</button>
+    </div>
+    <script src="life.js"></script>
+</body>
+</html>
