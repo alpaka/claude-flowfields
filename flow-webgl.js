@@ -868,9 +868,17 @@ void main() {
         }
     }
 
-    // Update velocity - blend toward target velocity
-    // In Forces Only mode (noiseMode 5), flowDir is already 0, so only forces/brownian affect particles
-    vel = mix(vel, flowDir + forceEffect + brownian, 0.3);
+    // Update velocity
+    if (u_noiseMode == 5) {
+        // Forces Only mode: use acceleration-based physics with light friction
+        // This preserves momentum so particles can orbit with gravity
+        vec2 acceleration = forceEffect * 0.1 + brownian * 0.1;
+        vel += acceleration;
+        vel *= 0.995; // Light friction (0.5% per frame)
+    } else {
+        // Normal mode: blend toward flow field velocity (acts like aether drag)
+        vel = mix(vel, flowDir + forceEffect + brownian, 0.3);
+    }
 
     // Update position
     pos += vel;
