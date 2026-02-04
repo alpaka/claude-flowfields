@@ -467,6 +467,10 @@
 
         <h3>Particle Interactions</h3>
         <div class="setting">
+            <label>Friction <span class="setting-value" id="frictionVal">0.005</span></label>
+            <input type="range" id="friction" min="0" max="0.1" step="0.001" value="0.005" oninput="setFriction(this.value)">
+        </div>
+        <div class="setting">
             <label>Gravity <span class="setting-value" id="gravityInteractionVal">0</span></label>
             <input type="range" id="gravityInteraction" min="-2" max="2" step="0.1" value="0" oninput="setGravityInteraction(this.value)">
         </div>
@@ -816,6 +820,11 @@
 
         function uniformParticles() {
             if (flowFieldsGL) flowFieldsGL.initializeParticles(true);
+        }
+
+        function setFriction(val) {
+            setConfig('friction', parseFloat(val));
+            document.getElementById('frictionVal').textContent = val;
         }
 
         function setGravityInteraction(val) {

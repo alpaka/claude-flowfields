@@ -32,6 +32,7 @@ class FlowFieldsGL {
             chargeInteraction: 0,   // Particle charge interaction strength (0 = disabled)
             chargeRatio: 0.5,       // Fraction of positive charges (0.5 = half and half)
             gravityInteraction: 0,  // Particle gravity interaction (-2 to +2, negative repels)
+            friction: 0.005,        // Friction in Forces Only mode (0-0.1)
             time: 0,
             ...initialConfig  // Apply initial config before init()
         };
@@ -399,6 +400,7 @@ class FlowFieldsGL {
         gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_chargeInteraction'), this.config.chargeInteraction);
         gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_chargeRatio'), this.config.chargeRatio);
         gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_gravityInteraction'), this.config.gravityInteraction);
+        gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_friction'), this.config.friction);
         gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_textureSize'), this.textureSize);
 
         // Force fields
@@ -578,6 +580,7 @@ uniform float u_zonesStrength;
 uniform float u_chargeInteraction;
 uniform float u_chargeRatio;
 uniform float u_gravityInteraction;
+uniform float u_friction;
 uniform float u_textureSize;
 
 // Simplex noise functions
@@ -813,7 +816,8 @@ void main() {
         random(vec2(u_time * 1.1 + v_texCoord.y * 555.0, pos.y * 0.1 + v_texCoord.x * 333.0)) - 0.5
     ) * u_brownianMotion;
 
-    // Mouse interaction
+    // Mouse interaction - stored separately for Forces Only mode
+    vec2 mouseForce = vec2(0.0);
     vec2 mouseDiff = pos - u_mouse.xy;
     float mouseDist = length(mouseDiff);
     if (mouseDist < u_mouse.z && mouseDist > 5.0) {
@@ -821,21 +825,21 @@ void main() {
         vec2 mouseDir = normalize(mouseDiff);
 
         if (u_mouseMode == 0) {
-            // Vortex - use u_speed as base so it works in Forces Only mode
+            // Vortex
             vec2 perp = vec2(-mouseDiff.y, mouseDiff.x) / mouseDist;
-            float baseSpeed = max(length(flowDir), u_speed);
-            flowDir = mix(flowDir, perp * baseSpeed * 2.0, force * 0.8);
+            mouseForce = perp * u_speed * 2.0 * force;
         } else if (u_mouseMode == 1) {
             // Attract
-            flowDir -= mouseDir * force * 3.0;
+            mouseForce = -mouseDir * force * 3.0;
         } else {
             // Repel
-            flowDir += mouseDir * force * 3.0;
+            mouseForce = mouseDir * force * 3.0;
         }
     }
+    flowDir += mouseForce;
 
     // Global gravity
-    flowDir.y -= u_globalGravity;
+    vec2 globalForces = vec2(0.0, -u_globalGravity);
 
     // Global swirl around screen center
     if (abs(u_globalSwirl) > 0.001) {
@@ -844,8 +848,9 @@ void main() {
         vec2 perpendicular = vec2(-toCenter.y, toCenter.x);
         float dist = length(toCenter);
         float swirlStrength = u_globalSwirl * (1.0 - dist / length(center));
-        flowDir += normalize(perpendicular) * swirlStrength * 2.0;
+        globalForces += normalize(perpendicular) * swirlStrength * 2.0;
     }
+    flowDir += globalForces;
 
     // Zones mode - different behaviors in different areas
     if (u_zonesEnabled) {
@@ -870,11 +875,11 @@ void main() {
 
     // Update velocity
     if (u_noiseMode == 5) {
-        // Forces Only mode: use acceleration-based physics with light friction
+        // Forces Only mode: use acceleration-based physics with configurable friction
         // This preserves momentum so particles can orbit with gravity
-        vec2 acceleration = forceEffect * 0.1 + brownian * 0.1;
+        vec2 acceleration = (forceEffect + mouseForce + globalForces + brownian) * 0.1;
         vel += acceleration;
-        vel *= 0.995; // Light friction (0.5% per frame)
+        vel *= (1.0 - u_friction); // Apply friction
     } else {
         // Normal mode: blend toward flow field velocity (acts like aether drag)
         vel = mix(vel, flowDir + forceEffect + brownian, 0.3);
