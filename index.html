@@ -160,7 +160,11 @@
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            max-width: 95vw;
+            padding: 0 10px;
         }
         #controls button {
             background: rgba(255, 255, 255, 0.1);
@@ -173,6 +177,16 @@
         }
         #controls button:hover {
             background: rgba(255, 255, 255, 0.2);
+        }
+        @media (max-width: 600px) {
+            #controls {
+                gap: 5px;
+                bottom: 10px;
+            }
+            #controls button {
+                padding: 8px 12px;
+                font-size: 11px;
+            }
         }
 
         #webgl-warning {
