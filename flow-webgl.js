@@ -29,6 +29,8 @@ class FlowFieldsGL {
             forceLifetime: 1.0,     // Lifetime multiplier (1.0 = default 500-1000 frames)
             maxForceRadius: 200,    // Maximum radius for spawned forces
             globalSwirl: 0,         // Global rotation around center (-1 to 1)
+            chargeInteraction: 0,   // Particle charge interaction strength (0 = disabled)
+            chargeRatio: 0.5,       // Fraction of positive charges (0.5 = half and half)
             time: 0,
             ...initialConfig  // Apply initial config before init()
         };
@@ -195,17 +197,36 @@ class FlowFieldsGL {
         return buffer;
     }
 
-    initializeParticles() {
+    initializeParticles(uniform = false) {
         const gl = this.gl;
         const size = this.textureSize;
         const data = new Float32Array(size * size * 4);
 
-        for (let i = 0; i < this.config.particleCount; i++) {
-            const idx = i * 4;
-            data[idx] = Math.random() * this.canvas.width;      // x
-            data[idx + 1] = Math.random() * this.canvas.height; // y
-            data[idx + 2] = (Math.random() - 0.5) * 2;          // vx
-            data[idx + 3] = (Math.random() - 0.5) * 2;          // vy
+        if (uniform) {
+            // Uniform grid distribution
+            const cols = Math.ceil(Math.sqrt(this.config.particleCount * this.canvas.width / this.canvas.height));
+            const rows = Math.ceil(this.config.particleCount / cols);
+            const spacingX = this.canvas.width / cols;
+            const spacingY = this.canvas.height / rows;
+
+            for (let i = 0; i < this.config.particleCount; i++) {
+                const idx = i * 4;
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                data[idx] = (col + 0.5) * spacingX;      // x
+                data[idx + 1] = (row + 0.5) * spacingY;  // y
+                data[idx + 2] = 0;                        // vx
+                data[idx + 3] = 0;                        // vy
+            }
+        } else {
+            // Random distribution
+            for (let i = 0; i < this.config.particleCount; i++) {
+                const idx = i * 4;
+                data[idx] = Math.random() * this.canvas.width;      // x
+                data[idx + 1] = Math.random() * this.canvas.height; // y
+                data[idx + 2] = (Math.random() - 0.5) * 2;          // vx
+                data[idx + 3] = (Math.random() - 0.5) * 2;          // vy
+            }
         }
 
         gl.bindTexture(gl.TEXTURE_2D, this.particleTextures[0]);
@@ -374,6 +395,9 @@ class FlowFieldsGL {
         gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_respawnRate'), this.config.respawnRate);
         gl.uniform1i(gl.getUniformLocation(this.physicsProgram, 'u_zonesEnabled'), this.config.zonesEnabled ? 1 : 0);
         gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_zonesStrength'), this.config.zonesStrength);
+        gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_chargeInteraction'), this.config.chargeInteraction);
+        gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_chargeRatio'), this.config.chargeRatio);
+        gl.uniform1f(gl.getUniformLocation(this.physicsProgram, 'u_textureSize'), this.textureSize);
 
         // Force fields
         const forceFieldData = this.getForceFieldUniforms();
@@ -424,6 +448,7 @@ class FlowFieldsGL {
         gl.uniform1f(gl.getUniformLocation(this.renderProgram, 'u_particleSize'), this.config.particleSize);
         gl.uniform1f(gl.getUniformLocation(this.renderProgram, 'u_time'), this.config.time);
         gl.uniform1f(gl.getUniformLocation(this.renderProgram, 'u_opacity'), this.config.particleOpacity);
+        gl.uniform1f(gl.getUniformLocation(this.renderProgram, 'u_chargeRatio'), this.config.chargeRatio);
 
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, this.particleTextures[this.currentTexture]);
@@ -548,6 +573,9 @@ uniform int u_forceFieldCount;
 uniform float u_respawnRate;
 uniform bool u_zonesEnabled;
 uniform float u_zonesStrength;
+uniform float u_chargeInteraction;
+uniform float u_chargeRatio;
+uniform float u_textureSize;
 
 // Simplex noise functions
 vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -676,6 +704,49 @@ vec2 getForceFieldEffect(vec2 pos) {
     return totalForce;
 }
 
+// Get charge for a particle based on its texture coordinate
+float getCharge(vec2 texCoord) {
+    float id = texCoord.x * u_textureSize + texCoord.y * u_textureSize * u_textureSize;
+    return (fract(id * 0.7919) < u_chargeRatio) ? 1.0 : -1.0;
+}
+
+// Calculate charge interaction force by sampling nearby particles
+vec2 getChargeInteraction(vec2 pos, vec2 texCoord) {
+    if (u_chargeInteraction < 0.001) return vec2(0.0);
+
+    float myCharge = getCharge(texCoord);
+    vec2 totalForce = vec2(0.0);
+    float interactionRadius = 100.0;
+
+    // Sample nearby particles using a spiral pattern
+    for (int i = 0; i < 16; i++) {
+        float angle = float(i) * 2.399 + u_time * 0.01; // Golden angle spiral
+        float r = (float(i) + 1.0) * 0.05;
+        vec2 offset = vec2(cos(angle), sin(angle)) * r;
+        vec2 sampleCoord = texCoord + offset;
+
+        // Wrap sample coordinates
+        sampleCoord = fract(sampleCoord);
+
+        vec4 other = texture(u_particles, sampleCoord);
+        vec2 otherPos = other.xy;
+        float otherCharge = getCharge(sampleCoord);
+
+        vec2 diff = pos - otherPos;
+        float dist = length(diff);
+
+        if (dist > 5.0 && dist < interactionRadius) {
+            float forceMag = 1.0 / (dist * dist + 10.0);
+            vec2 dir = normalize(diff);
+            // Like charges repel (positive force), unlike attract (negative)
+            float chargeProduct = myCharge * otherCharge;
+            totalForce += dir * forceMag * chargeProduct * 50.0;
+        }
+    }
+
+    return totalForce * u_chargeInteraction;
+}
+
 void main() {
     vec4 particle = texture(u_particles, v_texCoord);
     vec2 pos = particle.xy;
@@ -696,6 +767,10 @@ void main() {
 
     // Add force field effects
     vec2 forceEffect = getForceFieldEffect(pos) * u_forceFieldStrength;
+
+    // Add charge interaction
+    vec2 chargeForce = getChargeInteraction(pos, v_texCoord);
+    forceEffect += chargeForce;
 
     // Add brownian motion - use independent seeds to avoid grid patterns
     vec2 brownian = vec2(
@@ -824,6 +899,7 @@ out vec4 fragColor;
 uniform int u_colorScheme;
 uniform float u_time;
 uniform float u_opacity;
+uniform float u_chargeRatio;
 
 vec3 getColor(int scheme, float t) {
     // Aurora
@@ -948,6 +1024,16 @@ vec3 getColor(int scheme, float t) {
         if (h < 5.0) return vec3(x, 0.0, 1.0);
         return vec3(1.0, 0.0, x);
     }
+    // Charge (positive = red/orange, negative = blue/cyan)
+    if (scheme == 13) {
+        if (t > 0.5) {
+            // Positive charge
+            return mix(vec3(1.0, 0.5, 0.0), vec3(1.0, 0.2, 0.2), (t - 0.5) * 2.0);
+        } else {
+            // Negative charge
+            return mix(vec3(0.2, 0.2, 1.0), vec3(0.0, 0.8, 1.0), t * 2.0);
+        }
+    }
 
     // Default white
     return vec3(1.0);
@@ -969,6 +1055,10 @@ void main() {
     } else if (u_colorScheme == 12) {
         // Direction mode: use movement angle
         t = v_angle;
+    } else if (u_colorScheme == 13) {
+        // Charge mode: derive charge from particle ID
+        float charge = (fract(v_id * 0.7919) < u_chargeRatio) ? 1.0 : 0.0;
+        t = charge;
     } else {
         t = fract(v_id * 0.1 + v_speed * 0.1);
     }
